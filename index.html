@@ -1,0 +1,725 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ระบบวิเคราะห์งบการเงินสหกรณ์</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<style>
+:root {
+  --bg: #0f1117;
+  --bg2: #161b27;
+  --bg3: #1e2535;
+  --card: #1a2030;
+  --border: rgba(255,255,255,0.08);
+  --border2: rgba(255,255,255,0.15);
+  --text: #e8ecf4;
+  --text2: #8b93a7;
+  --text3: #555e72;
+  --accent: #4f8ef7;
+  --accent2: #2d6ee8;
+  --green: #34c77b;
+  --green2: #1a7a47;
+  --red: #f75252;
+  --red2: #8a1f1f;
+  --amber: #f5a623;
+  --amber2: #7a5010;
+  --teal: #22d3c8;
+  --purple: #9b7ef7;
+  --font: 'Sarabun', sans-serif;
+  --mono: 'IBM Plex Mono', monospace;
+  --radius: 12px;
+  --radius-sm: 8px;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: var(--font); background: var(--bg); color: var(--text); min-height: 100vh; }
+
+/* TOPBAR */
+.topbar {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 0 2rem; height: 56px;
+  background: var(--bg2); border-bottom: 1px solid var(--border);
+  position: sticky; top: 0; z-index: 100;
+}
+.topbar-left { display: flex; align-items: center; gap: 12px; }
+.logo { width: 32px; height: 32px; background: var(--accent); border-radius: 8px;
+  display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 16px; color: #fff; }
+.topbar-title { font-size: 15px; font-weight: 600; }
+.topbar-sub { font-size: 12px; color: var(--text2); margin-left: 8px; }
+.topbar-right { display: flex; align-items: center; gap: 10px; }
+.btn { padding: 7px 14px; border-radius: var(--radius-sm); font-size: 13px; font-family: var(--font);
+  cursor: pointer; border: none; font-weight: 500; transition: all 0.15s; display: flex; align-items: center; gap: 6px; }
+.btn-ghost { background: transparent; color: var(--text2); border: 1px solid var(--border); }
+.btn-ghost:hover { border-color: var(--border2); color: var(--text); background: var(--bg3); }
+.btn-primary { background: var(--accent); color: #fff; }
+.btn-primary:hover { background: var(--accent2); }
+.btn-green { background: var(--green2); color: var(--green); border: 1px solid rgba(52,199,123,0.25); }
+.btn-green:hover { background: rgba(52,199,123,0.2); }
+.status-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--green); animation: pulse 2s infinite; }
+@keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.4} }
+
+/* SIDEBAR */
+.layout { display: flex; height: calc(100vh - 56px); }
+.sidebar {
+  width: 220px; flex-shrink: 0; background: var(--bg2);
+  border-right: 1px solid var(--border); padding: 1rem 0; overflow-y: auto;
+  display: flex; flex-direction: column;
+}
+.sidebar-section { padding: 0 12px; margin-bottom: 4px; }
+.sidebar-label { font-size: 10px; font-weight: 600; letter-spacing: 0.08em; color: var(--text3);
+  text-transform: uppercase; padding: 8px 8px 4px; }
+.nav-item { display: flex; align-items: center; gap: 10px; padding: 8px 10px;
+  border-radius: var(--radius-sm); cursor: pointer; font-size: 13px; color: var(--text2);
+  transition: all 0.12s; user-select: none; border: none; background: none; width: 100%; text-align: left; font-family: var(--font); }
+.nav-item:hover { background: var(--bg3); color: var(--text); }
+.nav-item.active { background: rgba(79,142,247,0.12); color: var(--accent); font-weight: 500; }
+.nav-icon { font-size: 15px; flex-shrink: 0; }
+.sidebar-bottom { margin-top: auto; padding: 12px; border-top: 1px solid var(--border); }
+.sync-info { font-size: 11px; color: var(--text3); line-height: 1.5; }
+
+/* MAIN */
+.main { flex: 1; overflow-y: auto; padding: 1.5rem 2rem; }
+.page { display: none; }
+.page.active { display: block; }
+.page-header { margin-bottom: 1.5rem; }
+.page-title { font-size: 22px; font-weight: 700; color: var(--text); }
+.page-sub { font-size: 13px; color: var(--text2); margin-top: 4px; }
+
+/* METRICS */
+.metrics { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 12px; margin-bottom: 1.5rem; }
+.metric-card { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); padding: 1rem 1.25rem; }
+.metric-label { font-size: 11px; color: var(--text3); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 8px; font-weight: 600; }
+.metric-value { font-size: 26px; font-weight: 700; font-family: var(--mono); }
+.metric-unit { font-size: 12px; color: var(--text2); margin-top: 2px; }
+.metric-change { font-size: 12px; margin-top: 6px; display: flex; align-items: center; gap: 4px; }
+.up { color: var(--green); }
+.down { color: var(--red); }
+.neutral { color: var(--text2); }
+
+/* CARDS */
+.grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 1rem; }
+.grid3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 1rem; margin-bottom: 1rem; }
+.card { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); padding: 1.25rem; margin-bottom: 1rem; }
+.card-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; }
+.card-title { font-size: 14px; font-weight: 600; color: var(--text); }
+.card-action { font-size: 12px; color: var(--accent); cursor: pointer; }
+
+/* CHARTS */
+.chart-wrap { position: relative; }
+
+/* TABLES */
+.table-wrap { overflow-x: auto; }
+table { width: 100%; border-collapse: collapse; font-size: 13px; }
+th { font-size: 11px; font-weight: 600; color: var(--text3); text-transform: uppercase;
+  letter-spacing: 0.05em; padding: 8px 12px; text-align: left; border-bottom: 1px solid var(--border); }
+th.r { text-align: right; }
+td { padding: 9px 12px; border-bottom: 1px solid var(--border); color: var(--text); vertical-align: middle; font-size: 13px; }
+td.r { text-align: right; font-family: var(--mono); font-size: 12px; }
+td.pct { text-align: right; color: var(--text2); font-size: 11px; }
+tr:last-child td { border-bottom: none; }
+tr.total td { background: rgba(79,142,247,0.06); font-weight: 600; }
+tr:hover td { background: var(--bg3); }
+
+/* BADGES */
+.badge { display: inline-flex; align-items: center; gap: 3px; font-size: 11px; padding: 2px 8px;
+  border-radius: 20px; font-weight: 500; font-family: var(--mono); }
+.badge-green { background: rgba(52,199,123,0.12); color: var(--green); border: 1px solid rgba(52,199,123,0.2); }
+.badge-red { background: rgba(247,82,82,0.12); color: var(--red); border: 1px solid rgba(247,82,82,0.2); }
+.badge-blue { background: rgba(79,142,247,0.12); color: var(--accent); border: 1px solid rgba(79,142,247,0.2); }
+.badge-amber { background: rgba(245,166,35,0.12); color: var(--amber); border: 1px solid rgba(245,166,35,0.2); }
+.badge-purple { background: rgba(155,126,247,0.12); color: var(--purple); border: 1px solid rgba(155,126,247,0.2); }
+
+/* RATIO */
+.ratio-row { display: flex; justify-content: space-between; align-items: center;
+  padding: 10px 0; border-bottom: 1px solid var(--border); }
+.ratio-row:last-child { border-bottom: none; }
+.ratio-label { font-size: 13px; color: var(--text2); }
+.ratio-right { display: flex; align-items: center; gap: 10px; }
+.ratio-val { font-size: 14px; font-weight: 600; font-family: var(--mono); }
+.bar-bg { width: 80px; height: 5px; background: var(--bg3); border-radius: 3px; overflow: hidden; }
+.bar-fill { height: 100%; border-radius: 3px; }
+
+/* UPLOAD */
+.upload-zone { border: 2px dashed var(--border2); border-radius: var(--radius); padding: 3rem;
+  text-align: center; cursor: pointer; transition: all 0.2s; }
+.upload-zone:hover { border-color: var(--accent); background: rgba(79,142,247,0.04); }
+.upload-zone.drag { border-color: var(--accent); background: rgba(79,142,247,0.08); }
+.upload-icon { font-size: 40px; margin-bottom: 12px; opacity: 0.6; }
+.upload-title { font-size: 16px; font-weight: 600; margin-bottom: 6px; }
+.upload-sub { font-size: 13px; color: var(--text2); }
+#fileInput { display: none; }
+.file-chip { display: inline-flex; align-items: center; gap: 8px; background: var(--bg3);
+  border: 1px solid var(--border); border-radius: 8px; padding: 6px 12px; font-size: 13px; margin-top: 12px; }
+
+/* GOOGLE SHEETS PANEL */
+.gs-panel { background: rgba(52,199,123,0.06); border: 1px solid rgba(52,199,123,0.2); border-radius: var(--radius); padding: 1.25rem; margin-bottom: 1rem; }
+.gs-header { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; }
+.gs-icon { font-size: 20px; }
+.gs-title { font-size: 14px; font-weight: 600; color: var(--green); }
+.gs-subtitle { font-size: 12px; color: var(--text2); margin-top: 2px; }
+.gs-input { width: 100%; background: var(--bg3); border: 1px solid var(--border); border-radius: var(--radius-sm);
+  color: var(--text); font-family: var(--font); font-size: 13px; padding: 10px 12px; outline: none; }
+.gs-input:focus { border-color: var(--accent); }
+.gs-steps { margin-top: 1rem; }
+.gs-step { display: flex; gap: 10px; align-items: flex-start; padding: 8px 0;
+  border-bottom: 1px solid var(--border); font-size: 13px; }
+.gs-step:last-child { border-bottom: none; }
+.gs-num { width: 22px; height: 22px; border-radius: 50%; background: var(--accent);
+  color: #fff; font-size: 11px; font-weight: 700; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+.gs-step-text { color: var(--text2); line-height: 1.5; }
+.gs-step-text strong { color: var(--text); }
+
+/* TABS inside card */
+.tabs { display: flex; gap: 2px; background: var(--bg); border-radius: var(--radius-sm);
+  padding: 3px; margin-bottom: 1rem; }
+.tab { flex: 1; text-align: center; padding: 6px; font-size: 12px; border-radius: 6px;
+  cursor: pointer; color: var(--text2); transition: all 0.15s; border: none; background: none; font-family: var(--font); }
+.tab.active { background: var(--card); color: var(--text); font-weight: 500; }
+
+/* NOTIFICATION */
+.notif { position: fixed; top: 70px; right: 20px; z-index: 999;
+  background: var(--bg2); border: 1px solid var(--border); border-radius: var(--radius-sm);
+  padding: 12px 16px; font-size: 13px; display: flex; align-items: center; gap: 8px;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.4); transform: translateX(200%); transition: transform 0.3s; }
+.notif.show { transform: translateX(0); }
+.notif.success { border-left: 3px solid var(--green); }
+.notif.error { border-left: 3px solid var(--red); }
+
+/* LEGEND */
+.legend { display: flex; flex-wrap: wrap; gap: 14px; margin-bottom: 10px; font-size: 12px; color: var(--text2); }
+.legend-item { display: flex; align-items: center; gap: 5px; }
+.legend-sq { width: 10px; height: 10px; border-radius: 2px; flex-shrink: 0; }
+
+/* RESPONSIVE */
+@media (max-width: 900px) {
+  .sidebar { width: 56px; }
+  .nav-item span:last-child { display: none; }
+  .sidebar-label { display: none; }
+  .topbar-sub { display: none; }
+  .grid2, .grid3 { grid-template-columns: 1fr; }
+}
+</style>
+</head>
+<body>
+
+<!-- TOPBAR -->
+<div class="topbar">
+  <div class="topbar-left">
+    <div class="logo">ส</div>
+    <span class="topbar-title">ระบบวิเคราะห์งบการเงินสหกรณ์</span>
+    <span class="topbar-sub">สหกรณ์ออมทรัพย์จุฬาลงกรณ์มหาวิทยาลัย จำกัด</span>
+  </div>
+  <div class="topbar-right">
+    <div class="status-dot"></div>
+    <span style="font-size:12px;color:var(--green)">เชื่อมต่อ Google Sheets</span>
+    <button class="btn btn-green" onclick="syncToSheets()">
+      <span>⬆</span> Sync to Sheets
+    </button>
+    <button class="btn btn-ghost" onclick="exportData()">⬇ Export</button>
+  </div>
+</div>
+
+<div class="layout">
+<!-- SIDEBAR -->
+<nav class="sidebar">
+  <div class="sidebar-section">
+    <div class="sidebar-label">หลัก</div>
+    <button class="nav-item active" onclick="showPage('overview', this)">
+      <span class="nav-icon">📊</span><span>ภาพรวม</span>
+    </button>
+    <button class="nav-item" onclick="showPage('balance', this)">
+      <span class="nav-icon">⚖️</span><span>งบฐานะการเงิน</span>
+    </button>
+    <button class="nav-item" onclick="showPage('income', this)">
+      <span class="nav-icon">📈</span><span>งบกำไรขาดทุน</span>
+    </button>
+    <button class="nav-item" onclick="showPage('cashflow', this)">
+      <span class="nav-icon">💸</span><span>กระแสเงินสด</span>
+    </button>
+    <button class="nav-item" onclick="showPage('ratios', this)">
+      <span class="nav-icon">📐</span><span>อัตราส่วน CAMEL</span>
+    </button>
+    <button class="nav-item" onclick="showPage('investment', this)">
+      <span class="nav-icon">💼</span><span>เงินลงทุน</span>
+    </button>
+  </div>
+  <div class="sidebar-section">
+    <div class="sidebar-label">จัดการ</div>
+    <button class="nav-item" onclick="showPage('import', this)">
+      <span class="nav-icon">📂</span><span>นำเข้าข้อมูล</span>
+    </button>
+    <button class="nav-item" onclick="showPage('sheets', this)">
+      <span class="nav-icon">📋</span><span>Google Sheets</span>
+    </button>
+  </div>
+  <div class="sidebar-bottom">
+    <div class="sync-info">
+      ซิงค์ล่าสุด<br>
+      <strong id="lastSync" style="color:var(--text)">ยังไม่ได้ซิงค์</strong>
+    </div>
+  </div>
+</nav>
+
+<!-- MAIN CONTENT -->
+<main class="main">
+
+<!-- ===== PAGE: OVERVIEW ===== -->
+<div id="page-overview" class="page active">
+  <div class="page-header">
+    <div class="page-title">ภาพรวมงบการเงิน</div>
+    <div class="page-sub">ปีบัญชีสิ้นสุดวันที่ 31 ธันวาคม 2568 | ตรวจสอบโดย บริษัท เอ็น.เอส.เค.สอบบัญชีและกฎหมาย จำกัด</div>
+  </div>
+
+  <div class="metrics">
+    <div class="metric-card">
+      <div class="metric-label">รวมสินทรัพย์</div>
+      <div class="metric-value" style="color:var(--accent)">36,016</div>
+      <div class="metric-unit">ล้านบาท</div>
+      <div class="metric-change down">▼ 5.05% จากปีก่อน</div>
+    </div>
+    <div class="metric-card">
+      <div class="metric-label">รวมทุนสหกรณ์</div>
+      <div class="metric-value" style="color:var(--green)">19,991</div>
+      <div class="metric-unit">ล้านบาท</div>
+      <div class="metric-change up">▲ 10.15% จากปีก่อน</div>
+    </div>
+    <div class="metric-card">
+      <div class="metric-label">กำไรสุทธิ</div>
+      <div class="metric-value" style="color:var(--green)">1,255</div>
+      <div class="metric-unit">ล้านบาท</div>
+      <div class="metric-change up">▲ 36.18% จากปีก่อน</div>
+    </div>
+    <div class="metric-card">
+      <div class="metric-label">รวมรายได้</div>
+      <div class="metric-value" style="color:var(--amber)">1,447</div>
+      <div class="metric-unit">ล้านบาท</div>
+      <div class="metric-change down">▼ 11.50% จากปีก่อน</div>
+    </div>
+    <div class="metric-card">
+      <div class="metric-label">สมาชิก</div>
+      <div class="metric-value">15,334</div>
+      <div class="metric-unit">คน</div>
+      <div class="metric-change down">▼ 69 คน</div>
+    </div>
+    <div class="metric-card">
+      <div class="metric-label">อัตรากำไรสุทธิ</div>
+      <div class="metric-value" style="color:var(--green)">86.70</div>
+      <div class="metric-unit">%</div>
+      <div class="metric-change up">▲ จาก 56.34%</div>
+    </div>
+    <div class="metric-card">
+      <div class="metric-label">ทุนเรือนหุ้น</div>
+      <div class="metric-value">15,330</div>
+      <div class="metric-unit">ล้านบาท</div>
+      <div class="metric-change up">▲ 1.62%</div>
+    </div>
+    <div class="metric-card">
+      <div class="metric-label">เงินรับฝาก</div>
+      <div class="metric-value">15,013</div>
+      <div class="metric-unit">ล้านบาท</div>
+      <div class="metric-change down">▲ 5.11%</div>
+    </div>
+  </div>
+
+  <div class="grid2">
+    <div class="card">
+      <div class="card-header">
+        <div class="card-title">โครงสร้างแหล่งที่มาของเงิน</div>
+        <span class="badge badge-blue">ปี 2568</span>
+      </div>
+      <div class="legend">
+        <span class="legend-item"><span class="legend-sq" style="background:#4f8ef7"></span>เงินรับฝาก 41.68%</span>
+        <span class="legend-item"><span class="legend-sq" style="background:#34c77b"></span>ทุนเรือนหุ้น 42.56%</span>
+        <span class="legend-item"><span class="legend-sq" style="background:#f5a623"></span>เงินกู้ยืม 2.39%</span>
+        <span class="legend-item"><span class="legend-sq" style="background:#555e72"></span>อื่นๆ 13.37%</span>
+      </div>
+      <div class="chart-wrap" style="height:200px">
+        <canvas id="donut1" role="img" aria-label="โครงสร้างแหล่งที่มาของเงิน">เงินรับฝาก 41.68%, ทุนเรือนหุ้น 42.56%</canvas>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-header">
+        <div class="card-title">การใช้ไปของเงินทุน</div>
+        <span class="badge badge-blue">ปี 2568</span>
+      </div>
+      <div class="legend">
+        <span class="legend-item"><span class="legend-sq" style="background:#4f8ef7"></span>เงินลงทุนหลักทรัพย์ 68.27%</span>
+        <span class="legend-item"><span class="legend-sq" style="background:#f75252"></span>ลูกหนี้เงินกู้ 24.51%</span>
+        <span class="legend-item"><span class="legend-sq" style="background:#555e72"></span>อื่นๆ 7.22%</span>
+      </div>
+      <div class="chart-wrap" style="height:200px">
+        <canvas id="donut2" role="img" aria-label="การใช้ไปของเงินทุน">เงินลงทุนหลักทรัพย์ 68.27%, ลูกหนี้เงินกู้ 24.51%</canvas>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-header">
+      <div class="card-title">ปริมาณธุรกิจหลัก 4 ปี (ล้านบาท)</div>
+      <button class="btn btn-ghost" style="font-size:11px" onclick="syncToSheets()">⬆ Sync</button>
+    </div>
+    <div class="legend">
+      <span class="legend-item"><span class="legend-sq" style="background:#4f8ef7"></span>ปล่อยเงินกู้ระหว่างปี</span>
+      <span class="legend-item"><span class="legend-sq" style="background:#34c77b"></span>รับฝากเงินระหว่างปี</span>
+      <span class="legend-item"><span class="legend-sq" style="background:#f5a623"></span>ลงทุนระหว่างปี</span>
+    </div>
+    <div class="chart-wrap" style="height:280px">
+      <canvas id="bizBar" role="img" aria-label="ปริมาณธุรกิจ 4 ปี">ข้อมูลปริมาณธุรกิจ</canvas>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-header">
+      <div class="card-title">กำไรสุทธิเปรียบเทียบ (ล้านบาท)</div>
+    </div>
+    <div class="chart-wrap" style="height:220px">
+      <canvas id="profitLine" role="img" aria-label="กำไรสุทธิ 4 ปี">กำไรสุทธิ 4 ปี</canvas>
+    </div>
+  </div>
+</div>
+
+<!-- ===== PAGE: BALANCE SHEET ===== -->
+<div id="page-balance" class="page">
+  <div class="page-header">
+    <div class="page-title">งบฐานะการเงิน</div>
+    <div class="page-sub">ณ วันที่ 31 ธันวาคม 2568</div>
+  </div>
+  <div class="card">
+    <div class="card-header">
+      <div class="card-title">สินทรัพย์ (Assets)</div>
+      <span class="badge badge-blue">รวม 36,016.09 ล้านบาท</span>
+    </div>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr><th>รายการ</th><th>หมายเหตุ</th><th class="r">ปี 2568 (บาท)</th><th class="r">ปี 2567 (บาท)</th><th class="r">เปลี่ยนแปลง</th></tr>
+        </thead>
+        <tbody id="assetTable"></tbody>
+      </table>
+    </div>
+  </div>
+  <div class="card" style="margin-top:1rem">
+    <div class="card-header">
+      <div class="card-title">หนี้สินและทุนของสหกรณ์</div>
+      <span class="badge badge-green">ทุน 55.50%</span>
+    </div>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr><th>รายการ</th><th>หมายเหตุ</th><th class="r">ปี 2568 (บาท)</th><th class="r">ปี 2567 (บาท)</th><th class="r">เปลี่ยนแปลง</th></tr>
+        </thead>
+        <tbody id="liabTable"></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- ===== PAGE: INCOME ===== -->
+<div id="page-income" class="page">
+  <div class="page-header">
+    <div class="page-title">งบกำไรขาดทุน</div>
+    <div class="page-sub">สำหรับปีสิ้นสุดวันที่ 31 ธันวาคม 2568</div>
+  </div>
+  <div class="grid2">
+    <div class="card">
+      <div class="card-header"><div class="card-title">รายได้และค่าใช้จ่าย (ล้านบาท)</div></div>
+      <div class="legend">
+        <span class="legend-item"><span class="legend-sq" style="background:#4f8ef7"></span>ปี 2568</span>
+        <span class="legend-item"><span class="legend-sq" style="background:#555e72"></span>ปี 2567</span>
+      </div>
+      <div class="chart-wrap" style="height:260px">
+        <canvas id="incomeBar" role="img" aria-label="รายได้และค่าใช้จ่าย">รายได้และค่าใช้จ่ายเปรียบเทียบ</canvas>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-header"><div class="card-title">สัดส่วนรายได้ปี 2568</div></div>
+      <div class="legend">
+        <span class="legend-item"><span class="legend-sq" style="background:#4f8ef7"></span>ดอกเบี้ยเงินกู้ 28%</span>
+        <span class="legend-item"><span class="legend-sq" style="background:#34c77b"></span>ผลตอบแทนลงทุน 72%</span>
+      </div>
+      <div class="chart-wrap" style="height:260px">
+        <canvas id="incomeDount" role="img" aria-label="สัดส่วนรายได้">สัดส่วนรายได้</canvas>
+      </div>
+    </div>
+  </div>
+  <div class="card">
+    <div class="card-header">
+      <div class="card-title">รายละเอียดงบกำไรขาดทุน</div>
+      <span class="badge badge-green">กำไร 86.70%</span>
+    </div>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>รายการ</th><th class="r">ปี 2568 (บาท)</th><th class="r">%</th><th class="r">ปี 2567 (บาท)</th><th class="r">%</th></tr></thead>
+        <tbody id="incomeTable"></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- ===== PAGE: CASHFLOW ===== -->
+<div id="page-cashflow" class="page">
+  <div class="page-header">
+    <div class="page-title">งบกระแสเงินสด</div>
+    <div class="page-sub">สำหรับปีสิ้นสุดวันที่ 31 ธันวาคม 2568</div>
+  </div>
+  <div class="metrics">
+    <div class="metric-card">
+      <div class="metric-label">กิจกรรมดำเนินงาน</div>
+      <div class="metric-value up">+3,334</div>
+      <div class="metric-unit">ล้านบาท</div>
+      <div class="metric-change up">▲ จาก -328M</div>
+    </div>
+    <div class="metric-card">
+      <div class="metric-label">กิจกรรมลงทุน</div>
+      <div class="metric-value up">+1,093</div>
+      <div class="metric-unit">ล้านบาท</div>
+      <div class="metric-change up">▲ จาก -1,230M</div>
+    </div>
+    <div class="metric-card">
+      <div class="metric-label">กิจกรรมจัดหาเงิน</div>
+      <div class="metric-value down">-4,345</div>
+      <div class="metric-unit">ล้านบาท</div>
+      <div class="metric-change down">▼ จาก +1,512M</div>
+    </div>
+    <div class="metric-card">
+      <div class="metric-label">เงินสดสุทธิเพิ่มขึ้น</div>
+      <div class="metric-value up">+82</div>
+      <div class="metric-unit">ล้านบาท</div>
+      <div class="metric-change up">▲ จาก -46M</div>
+    </div>
+  </div>
+  <div class="card">
+    <div class="card-header"><div class="card-title">กระแสเงินสดเปรียบเทียบ (ล้านบาท)</div></div>
+    <div class="legend">
+      <span class="legend-item"><span class="legend-sq" style="background:#4f8ef7"></span>ปี 2568</span>
+      <span class="legend-item"><span class="legend-sq" style="background:#555e72"></span>ปี 2567</span>
+    </div>
+    <div class="chart-wrap" style="height:280px">
+      <canvas id="cashBar" role="img" aria-label="กระแสเงินสด">กระแสเงินสด</canvas>
+    </div>
+  </div>
+  <div class="card">
+    <div class="card-header"><div class="card-title">รายละเอียดกระแสเงินสด</div></div>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>รายการ</th><th class="r">ปี 2568 (บาท)</th><th class="r">ปี 2567 (บาท)</th></tr></thead>
+        <tbody id="cashTable"></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- ===== PAGE: RATIOS ===== -->
+<div id="page-ratios" class="page">
+  <div class="page-header">
+    <div class="page-title">อัตราส่วนทางการเงิน CAMEL</div>
+    <div class="page-sub">เกณฑ์การประเมินคุณภาพสหกรณ์ตามกรมตรวจบัญชีสหกรณ์ — ผล "ดีมาก"</div>
+  </div>
+  <div class="grid2">
+    <div class="card">
+      <div class="card-header">
+        <div class="card-title">C — ความเพียงพอของเงินทุน</div>
+        <span class="badge badge-green">ดีขึ้น</span>
+      </div>
+      <div id="ratioC"></div>
+    </div>
+    <div class="card">
+      <div class="card-header">
+        <div class="card-title">A — คุณภาพสินทรัพย์</div>
+        <span class="badge badge-amber">ระวัง</span>
+      </div>
+      <div id="ratioA"></div>
+    </div>
+    <div class="card">
+      <div class="card-header">
+        <div class="card-title">M — ความสามารถบริหาร</div>
+        <span class="badge badge-red">ลดลง</span>
+      </div>
+      <div id="ratioM"></div>
+    </div>
+    <div class="card">
+      <div class="card-header">
+        <div class="card-title">E — การทำกำไร</div>
+        <span class="badge badge-green">ดีมาก</span>
+      </div>
+      <div id="ratioE"></div>
+    </div>
+  </div>
+  <div class="card">
+    <div class="card-header">
+      <div class="card-title">L — สภาพคล่อง</div>
+      <span class="badge badge-green">ดีขึ้น</span>
+    </div>
+    <div id="ratioL"></div>
+  </div>
+  <div class="card">
+    <div class="card-header"><div class="card-title">เปรียบเทียบอัตราส่วนหลัก ปี 2567 vs 2568</div></div>
+    <div class="legend">
+      <span class="legend-item"><span class="legend-sq" style="background:#555e72"></span>ปี 2567</span>
+      <span class="legend-item"><span class="legend-sq" style="background:#4f8ef7"></span>ปี 2568</span>
+    </div>
+    <div class="chart-wrap" style="height:280px">
+      <canvas id="ratioBar" role="img" aria-label="อัตราส่วน CAMEL">อัตราส่วน CAMEL</canvas>
+    </div>
+  </div>
+</div>
+
+<!-- ===== PAGE: INVESTMENT ===== -->
+<div id="page-investment" class="page">
+  <div class="page-header">
+    <div class="page-title">เงินลงทุน</div>
+    <div class="page-sub">รวมเงินลงทุน 24,589.44 ล้านบาท (68.27% ของสินทรัพย์รวม)</div>
+  </div>
+  <div class="metrics">
+    <div class="metric-card">
+      <div class="metric-label">เงินลงทุนระยะสั้น</div>
+      <div class="metric-value" style="color:var(--accent)">9,123</div>
+      <div class="metric-unit">ล้านบาท</div>
+      <div class="metric-change up">▲ 21.42%</div>
+    </div>
+    <div class="metric-card">
+      <div class="metric-label">เงินลงทุนระยะยาว</div>
+      <div class="metric-value" style="color:var(--purple)">15,466</div>
+      <div class="metric-unit">ล้านบาท</div>
+      <div class="metric-change down">▼ 16.00%</div>
+    </div>
+    <div class="metric-card">
+      <div class="metric-label">ลูกหนี้หุ้นกู้ บมจ.การบินไทย</div>
+      <div class="metric-value" style="color:var(--amber)">1,801</div>
+      <div class="metric-unit">ล้านบาท</div>
+      <div class="metric-change neutral">ใหม่ปี 2568</div>
+    </div>
+  </div>
+  <div class="card">
+    <div class="card-header"><div class="card-title">โครงสร้างเงินลงทุนระยะสั้น (ตราสารทุน)</div></div>
+    <div class="table-wrap"><table><thead><tr><th>รายการ</th><th class="r">มูลค่ายุติธรรม (บาท)</th><th class="r">ราคาทุน (บาท)</th></tr></thead>
+    <tbody id="investTable"></tbody></table></div>
+  </div>
+</div>
+
+<!-- ===== PAGE: IMPORT ===== -->
+<div id="page-import" class="page">
+  <div class="page-header">
+    <div class="page-title">นำเข้าข้อมูล PDF</div>
+    <div class="page-sub">อัปโหลดไฟล์งบการเงินสหกรณ์ในรูปแบบ PDF</div>
+  </div>
+  <div class="card">
+    <div class="upload-zone" id="dropZone" onclick="document.getElementById('fileInput').click()"
+      ondragover="event.preventDefault();this.classList.add('drag')"
+      ondragleave="this.classList.remove('drag')"
+      ondrop="handleDrop(event)">
+      <div class="upload-icon">📄</div>
+      <div class="upload-title">ลากไฟล์ PDF มาวางที่นี่</div>
+      <div class="upload-sub">หรือคลิกเพื่อเลือกไฟล์ | รองรับ .pdf ขนาดไม่เกิน 50 MB</div>
+      <input type="file" id="fileInput" accept=".pdf" onchange="handleFile(this)">
+    </div>
+    <div id="fileChip"></div>
+  </div>
+
+  <div class="card">
+    <div class="card-header"><div class="card-title">ไฟล์ที่โหลดในระบบแล้ว</div></div>
+    <table>
+      <thead><tr><th>ชื่อไฟล์</th><th>ปีบัญชี</th><th>สถานะ</th><th>วันที่นำเข้า</th></tr></thead>
+      <tbody>
+        <tr>
+          <td>งบการเง_น_สอ_จ_ฬา.pdf</td>
+          <td><span class="badge badge-blue">2568</span></td>
+          <td><span class="badge badge-green">✓ นำเข้าแล้ว</span></td>
+          <td style="color:var(--text2);font-size:12px" id="importDate"></td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- ===== PAGE: GOOGLE SHEETS ===== -->
+<div id="page-sheets" class="page">
+  <div class="page-header">
+    <div class="page-title">เชื่อมต่อ Google Sheets</div>
+    <div class="page-sub">ซิงค์ข้อมูลงบการเงินเข้า Google Sheets อัตโนมัติ</div>
+  </div>
+
+  <div class="gs-panel">
+    <div class="gs-header">
+      <div class="gs-icon">📋</div>
+      <div>
+        <div class="gs-title">การตั้งค่า Google Sheets Integration</div>
+        <div class="gs-subtitle">ข้อมูลจะถูกส่งเข้า Sheets ทุกครั้งที่กด Sync</div>
+      </div>
+    </div>
+    <div style="margin-bottom:10px">
+      <label style="font-size:12px;color:var(--text2);display:block;margin-bottom:6px">Google Spreadsheet ID หรือ URL</label>
+      <input class="gs-input" type="text" id="sheetId" placeholder="https://docs.google.com/spreadsheets/d/YOUR_SHEET_ID/edit" oninput="saveSheetConfig()">
+    </div>
+    <div style="margin-bottom:10px">
+      <label style="font-size:12px;color:var(--text2);display:block;margin-bottom:6px">Google Apps Script Web App URL (Deployment URL)</label>
+      <input class="gs-input" type="text" id="scriptUrl" placeholder="https://script.google.com/macros/s/YOUR_SCRIPT_ID/exec" oninput="saveSheetConfig()">
+    </div>
+    <div style="display:flex;gap:10px;margin-top:12px;flex-wrap:wrap">
+      <button class="btn btn-green" onclick="syncToSheets()">⬆ Sync ข้อมูลทั้งหมด</button>
+      <button class="btn btn-ghost" onclick="testConnection()">🔗 ทดสอบการเชื่อมต่อ</button>
+      <button class="btn btn-ghost" onclick="copyScript()">📋 Copy Google Apps Script</button>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-header"><div class="card-title">วิธีตั้งค่า Google Sheets</div></div>
+    <div class="gs-steps">
+      <div class="gs-step">
+        <div class="gs-num">1</div>
+        <div class="gs-step-text">เปิด <strong>Google Sheets</strong> และสร้าง Spreadsheet ใหม่ หรือใช้ที่มีอยู่แล้ว</div>
+      </div>
+      <div class="gs-step">
+        <div class="gs-num">2</div>
+        <div class="gs-step-text">ไปที่ <strong>Extensions → Apps Script</strong> แล้ววาง Script ที่ copy ด้านบน</div>
+      </div>
+      <div class="gs-step">
+        <div class="gs-num">3</div>
+        <div class="gs-step-text">กด <strong>Deploy → New deployment</strong> เลือก type เป็น <strong>Web app</strong> และ access เป็น <strong>Anyone</strong></div>
+      </div>
+      <div class="gs-step">
+        <div class="gs-num">4</div>
+        <div class="gs-step-text">Copy <strong>Deployment URL</strong> มาวางในช่อง Script URL ด้านบน</div>
+      </div>
+      <div class="gs-step">
+        <div class="gs-num">5</div>
+        <div class="gs-step-text">กด <strong>Sync ข้อมูลทั้งหมด</strong> ระบบจะส่งข้อมูลงบการเงินทั้งหมดเข้า Google Sheets</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-header"><div class="card-title">Google Apps Script Code</div></div>
+    <pre style="background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:1rem;font-family:var(--mono);font-size:11px;color:var(--text2);overflow-x:auto;line-height:1.6" id="scriptCode"></pre>
+  </div>
+
+  <div class="card">
+    <div class="card-header"><div class="card-title">ชีทที่จะถูกสร้างใน Google Sheets</div></div>
+    <table>
+      <thead><tr><th>ชื่อชีท</th><th>ข้อมูลที่จะบันทึก</th><th>แถวโดยประมาณ</th></tr></thead>
+      <tbody>
+        <tr><td>งบฐานะการเงิน</td><td>สินทรัพย์ หนี้สิน ทุน เปรียบเทียบ 2 ปี</td><td>~40 แถว</td></tr>
+        <tr><td>งบกำไรขาดทุน</td><td>รายได้ ค่าใช้จ่าย กำไรสุทธิ</td><td>~30 แถว</td></tr>
+        <tr><td>กระแสเงินสด</td><td>3 กิจกรรม ยอดเงินสดต้น-ปลายงวด</td><td>~50 แถว</td></tr>
+        <tr><td>อัตราส่วน CAMEL</td><td>ตัวชี้วัด C A M E L ปี 2567-2568</td><td>~20 แถว</td></tr>
+        <tr><td>เงินลงทุน</td><td>รายละเอียดเงินลงทุนแต่ละหลักทรัพย์</td><td>~60 แถว</td></tr>
+        <tr><td>สรุปภาพรวม</td><td>ตัวชี้วัดหลัก dashboard</td><td>~15 แถว</td></tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+</main>
+</div>
+
+<!-- NOTIFICATION -->
+<div class="notif success" id="notif">
+  <span id="notifIcon">✓</span>
+  <span id="notifText">ซิงค์ข้อมูลเรียบร้อย</span>
+</div>
+
+<script src="app.js"></script>
+</body>
+</html>
